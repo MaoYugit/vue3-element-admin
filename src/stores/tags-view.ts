@@ -1,26 +1,38 @@
 import type { LocationQuery } from "vue-router";
 import { isExternal } from "@/utils";
 
+/**
+ * 标签视图对象
+ */
 export interface TagView {
-  name: string;
-  title: string;
-  path: string;
-  fullPath: string;
-  icon?: string;
-  affix?: boolean;
-  keepAlive?: boolean;
-  query?: LocationQuery;
+  name: string; // 路由名称
+  title: string; // 标签名称
+  path: string; // 路径
+  fullPath: string; // 完整路径
+  icon?: string; // 图标
+  affix?: boolean; // 固定
+  keepAlive?: boolean; // 是否缓存
+  query?: LocationQuery; // 路由参数
 }
 
+/**
+ * 普通返回接口
+ */
 export interface TagsViewResult {
   visitedViews: TagView[];
   cachedViews: string[];
 }
 
+/**
+ * 方向删除返回接口
+ */
 export interface DirectionalTagsViewResult {
   visitedViews: TagView[];
 }
 
+/**
+ * 标签视图存储
+ */
 export const useTagsViewStore = defineStore("tagsView", () => {
   const visitedViews = ref<TagView[]>([]);
   const cachedViews = ref<string[]>([]);
@@ -65,52 +77,57 @@ export const useTagsViewStore = defineStore("tagsView", () => {
   /**
    * 从已访问视图列表中删除指定的视图
    */
-  function delVisitedView(view: TagView) {
-    return new Promise((resolve) => {
-      for (const [i, v] of visitedViews.value.entries()) {
-        // 找到与指定视图路径匹配的视图，在已访问视图列表中删除该视图
-        if (v.path === view.path) {
-          visitedViews.value.splice(i, 1);
-          break;
-        }
+  async function delVisitedView(view: TagView) {
+    for (const [i, v] of visitedViews.value.entries()) {
+      // 找到与指定视图路径匹配的视图，在已访问视图列表中删除该视图
+      if (v.path === view.path) {
+        visitedViews.value.splice(i, 1);
+        break;
       }
-      resolve([...visitedViews.value]);
-    });
+    }
+    // 这里的 return 会自动被包装成 Promise.resolve([...])
+    return [...visitedViews.value];
   }
 
-  function delCachedView(view: TagView) {
+  /**
+   * 从缓存视图列表中删除指定的视图
+   */
+  async function delCachedView(view: TagView) {
     const { fullPath } = view;
-    return new Promise((resolve) => {
-      const index = cachedViews.value.indexOf(fullPath);
-      if (index > -1) {
-        cachedViews.value.splice(index, 1);
-      }
-      resolve([...cachedViews.value]);
-    });
-  }
-  function delOtherVisitedViews(view: TagView) {
-    return new Promise((resolve) => {
-      visitedViews.value = visitedViews.value.filter((v) => {
-        return v?.affix || v.path === view.path;
-      });
-      resolve([...visitedViews.value]);
-    });
+    const index = cachedViews.value.indexOf(fullPath);
+    if (index > -1) {
+      cachedViews.value.splice(index, 1);
+    }
+    return [...cachedViews.value];
   }
 
-  function delOtherCachedViews(view: TagView) {
+  /**
+   * 删除其他已访问的视图
+   */
+  async function delOtherVisitedViews(view: TagView) {
+    visitedViews.value = visitedViews.value.filter((v) => {
+      return v?.affix || v.path === view.path;
+    });
+    return [...visitedViews.value];
+  }
+  /**
+   * 删除其他缓存的视图
+   */
+  async function delOtherCachedViews(view: TagView) {
     const { fullPath } = view;
-    return new Promise((resolve) => {
-      const index = cachedViews.value.indexOf(fullPath);
-      if (index > -1) {
-        cachedViews.value = cachedViews.value.slice(index, index + 1);
-      } else {
-        // if index = -1, there is no cached tags
-        cachedViews.value = [];
-      }
-      resolve([...cachedViews.value]);
-    });
+    const index = cachedViews.value.indexOf(fullPath);
+    if (index > -1) {
+      cachedViews.value = cachedViews.value.slice(index, index + 1);
+    } else {
+      // if index = -1, there is no cached tags
+      cachedViews.value = [];
+    }
+    return [...cachedViews.value];
   }
 
+  /**
+   * 更新已访问的视图
+   */
   function updateVisitedView(view: TagView) {
     for (const v of visitedViews.value) {
       if (v.path === view.path) {
@@ -133,109 +150,140 @@ export const useTagsViewStore = defineStore("tagsView", () => {
     }
   }
 
+  /**
+   * 添加视图
+   */
   function addView(view: TagView) {
     addVisitedView(view);
     addCachedView(view);
   }
 
-  function delView(view: TagView): Promise<TagsViewResult> {
-    return new Promise((resolve) => {
-      delVisitedView(view);
-      delCachedView(view);
-      resolve({
-        visitedViews: [...visitedViews.value],
-        cachedViews: [...cachedViews.value],
-      });
-    });
+  /**
+   * 删除视图
+   */
+  async function delView(view: TagView): Promise<TagsViewResult> {
+    await Promise.all([delVisitedView(view), delCachedView(view)]);
+    return {
+      visitedViews: [...visitedViews.value],
+      cachedViews: [...cachedViews.value],
+    };
   }
 
-  function delOtherViews(view: TagView): Promise<TagsViewResult> {
-    return new Promise((resolve) => {
-      delOtherVisitedViews(view);
-      delOtherCachedViews(view);
-      resolve({
-        visitedViews: [...visitedViews.value],
-        cachedViews: [...cachedViews.value],
-      });
-    });
+  /**
+   * 删除其他视图
+   */
+  async function delOtherViews(view: TagView): Promise<TagsViewResult> {
+    await Promise.all([delOtherVisitedViews(view), delOtherCachedViews(view)]);
+    return {
+      visitedViews: [...visitedViews.value],
+      cachedViews: [...cachedViews.value],
+    };
   }
 
-  function delLeftViews(view: TagView): Promise<DirectionalTagsViewResult> {
-    return new Promise((resolve) => {
-      const currIndex = visitedViews.value.findIndex((v) => v.path === view.path);
-      if (currIndex === -1) {
-        resolve({
-          visitedViews: [...visitedViews.value],
-        });
-        return;
+  /**
+   * 删除左侧视图
+   */
+  async function delLeftViews(view: TagView): Promise<DirectionalTagsViewResult> {
+    const currentIndex = visitedViews.value.findIndex((v) => v.path === view.path);
+    if (currentIndex === -1) {
+      return {
+        visitedViews: [...visitedViews.value],
+      };
+    }
+    visitedViews.value = visitedViews.value.filter((item, index) => {
+      if (index >= currentIndex || item?.affix) {
+        return true;
       }
-      visitedViews.value = visitedViews.value.filter((item, index) => {
-        if (index >= currIndex || item?.affix) {
-          return true;
-        }
-
-        const cacheIndex = cachedViews.value.indexOf(item.fullPath);
-        if (cacheIndex > -1) {
-          cachedViews.value.splice(cacheIndex, 1);
-        }
-        return false;
-      });
-      resolve({
-        visitedViews: [...visitedViews.value],
-      });
-    });
-  }
-
-  function delRightViews(view: TagView): Promise<DirectionalTagsViewResult> {
-    return new Promise((resolve) => {
-      const currIndex = visitedViews.value.findIndex((v) => v.path === view.path);
-      if (currIndex === -1) {
-        resolve({
-          visitedViews: [...visitedViews.value],
-        });
-        return;
+      const cachedIndex = cachedViews.value.indexOf(item.fullPath);
+      if (cachedIndex > -1) {
+        cachedViews.value.splice(cachedIndex, 1);
       }
-      visitedViews.value = visitedViews.value.filter((item, index) => {
-        if (index <= currIndex || item?.affix) {
-          return true;
-        }
-        const cacheIndex = cachedViews.value.indexOf(item.fullPath);
-        if (cacheIndex > -1) {
-          cachedViews.value.splice(cacheIndex, 1);
-        }
-        return false;
-      });
-      resolve({
+      return false;
+    });
+    return {
+      visitedViews: [...visitedViews.value],
+    };
+  }
+
+  /**
+   * 删除右侧视图
+   */
+  async function delRightViews(view: TagView): Promise<DirectionalTagsViewResult> {
+    const currentIndex = visitedViews.value.findIndex((v) => v.path === view.path);
+    if (currentIndex === -1) {
+      return {
         visitedViews: [...visitedViews.value],
-      });
+      };
+    }
+    visitedViews.value = visitedViews.value.filter((item, index) => {
+      if (index <= currentIndex || item?.affix) {
+        return true;
+      }
+      const cachedIndex = cachedViews.value.indexOf(item.fullPath);
+      if (cachedIndex > -1) {
+        cachedViews.value.splice(cachedIndex, 1);
+      }
+      return false;
     });
+    return {
+      visitedViews: [...visitedViews.value],
+    };
   }
 
-  function delAllViews(): Promise<TagsViewResult> {
-    return new Promise((resolve) => {
-      const affixTags = visitedViews.value.filter((tag) => tag?.affix);
-      visitedViews.value = affixTags;
-      cachedViews.value = [];
-      resolve({
-        visitedViews: [...visitedViews.value],
-        cachedViews: [...cachedViews.value],
-      });
-    });
+  /**
+   * 删除所有视图
+   */
+  async function delAllViews(): Promise<TagsViewResult> {
+    const affixTags = visitedViews.value.filter((tag) => tag?.affix);
+    visitedViews.value = affixTags;
+    cachedViews.value = [];
+    return {
+      visitedViews: [...visitedViews.value],
+      cachedViews: [...cachedViews.value],
+    };
   }
 
-  function delAllVisitedViews() {
-    return new Promise((resolve) => {
-      const affixTags = visitedViews.value.filter((tag) => tag?.affix);
-      visitedViews.value = affixTags;
-      resolve([...visitedViews.value]);
-    });
+  /**
+   * 删除所有已访问的视图
+   */
+  async function delAllVisitedViews() {
+    const affixTags = visitedViews.value.filter((tag) => tag?.affix);
+    visitedViews.value = affixTags;
+    return [...visitedViews.value];
   }
 
-  function delAllCachedViews() {
-    return new Promise((resolve) => {
-      cachedViews.value = [];
-      resolve([...cachedViews.value]);
-    });
+  /**
+   * 删除所有缓存的视图
+   */
+  async function delAllCachedViews() {
+    cachedViews.value = [];
+    return [...cachedViews.value];
+  }
+
+  /**
+   * 判断当前标签是否激活
+   */
+  function isActive(tag: TagView) {
+    return tag.path === route.path;
+  }
+
+  /**
+   * 跳转到上一次访问的页面
+   */
+  function toLastView(visitedViews: TagView[], view?: TagView) {
+    const latestView = visitedViews.slice(-1)[0];
+    if (latestView && latestView.fullPath) {
+      router.push(latestView.fullPath);
+    } else {
+      // now the default is to redirect to the home page if there is no tags-view,
+      // you can adjust it according to your needs.
+      if (view?.name === "Dashboard") {
+        // to reload home page
+        router.replace("/redirect" + view.fullPath);
+      } else {
+        router.push("/");
+      }
+    }
   }
 
   /**
@@ -257,26 +305,6 @@ export const useTagsViewStore = defineStore("tagsView", () => {
         toLastView(res.visitedViews, tags);
       }
     });
-  }
-
-  function isActive(tag: TagView) {
-    return tag.path === route.path;
-  }
-
-  function toLastView(visitedViews: TagView[], view?: TagView) {
-    const latestView = visitedViews.slice(-1)[0];
-    if (latestView && latestView.fullPath) {
-      router.push(latestView.fullPath);
-    } else {
-      // now the default is to redirect to the home page if there is no tags-view,
-      // you can adjust it according to your needs.
-      if (view?.name === "Dashboard") {
-        // to reload home page
-        router.replace("/redirect" + view.fullPath);
-      } else {
-        router.push("/");
-      }
-    }
   }
 
   return {

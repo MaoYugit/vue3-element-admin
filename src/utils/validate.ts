@@ -17,7 +17,7 @@ import type { FormItemRule } from "element-plus";
  * ```
  */
 export function isExternal(path: string): boolean {
-  return /^(https?:|http?:|mailto:|tel:)/.test(path);
+  return /^(https?:|mailto:|tel:)/.test(path);
 }
 
 /**

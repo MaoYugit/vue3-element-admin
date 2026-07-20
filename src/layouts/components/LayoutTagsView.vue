@@ -305,6 +305,9 @@ const addCurrentTag = () => {
   });
 };
 
+/**
+ * 处理标签页（Tab）的点击跳转逻辑
+ */
 const openTag = (tag: TagView) => {
   if (isExternal(tag.fullPath)) {
     window.open(tag.fullPath, "_blank", "noopener,noreferrer");
@@ -353,17 +356,27 @@ const closeContextMenu = () => {
   contextMenu.visible = false;
 };
 
+/**
+ * 滚动处理
+ */
 const handleScroll = (event: WheelEvent) => {
+  // 关闭右键菜单
   closeContextMenu();
 
+  // 获取滚动容器
   const scrollWrapper = scrollbarRef.value?.wrapRef;
   if (!scrollWrapper) return;
 
+  // 判断是否有横向滚动（总宽度是否大于容器宽度）
   const hasHorizontalScroll = scrollWrapper.scrollWidth > scrollWrapper.clientWidth;
   if (!hasHorizontalScroll) return;
 
+  // 兼容性处理
   const legacyEvent = event as WheelEvent & { wheelDelta?: number };
+
+  // 获取滚动距离与方向
   const deltaY = event.deltaY || -(legacyEvent.wheelDelta ?? 0);
+  // 计算新的滚动距离，代表容器当前已经向右滚动了多少像素
   const newScrollLeft = scrollWrapper.scrollLeft + deltaY;
 
   scrollbarRef.value.setScrollLeft(newScrollLeft);
